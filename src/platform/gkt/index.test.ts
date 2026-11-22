@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { normalizeNfcPayload } from './index';
 
@@ -533,34 +533,50 @@ describe('GKTAdapter', () => {
       ]);
     });
 
-    it('stops a flush when the bridge is slow and continues later', async () => {
-      // Each native call costs 5 ms here; the time budget allows two per flush.
-      let now = 0;
-      const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => now);
-      mockLog2.mockImplementation(() => {
-        now += 5;
-      });
-      const idleCallbacks: (() => void)[] = [];
-      vi.stubGlobal('requestIdleCallback', (callback: () => void) => {
-        idleCallbacks.push(callback);
-        return idleCallbacks.length;
+    describe('idle scheduling', () => {
+      type IdleCallback = (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void;
+      let idleCallbacks: IdleCallback[];
+
+      beforeEach(async () => {
+        // Let a flush that an earlier test scheduled finish first.
+        await adapter.persistLog('settle');
+        mockLog2.mockReset();
+        idleCallbacks = [];
+        vi.stubGlobal('requestIdleCallback', (callback: IdleCallback) => {
+          idleCallbacks.push(callback);
+          return idleCallbacks.length;
+        });
       });
 
-      try {
+      afterEach(() => {
+        // Drain what a test left queued, so it cannot leak into the next one.
+        window.dispatchEvent(new Event('pagehide'));
+        vi.unstubAllGlobals();
+      });
+
+      it('stops writing when the idle period has no room for another native call', () => {
+        // 20 ms idle, each native call costs 7 ms: two fit, the third must wait.
+        let remaining = 20;
+        mockLog2.mockImplementation(() => {
+          remaining -= 7;
+        });
         for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
         expect(idleCallbacks).toHaveLength(1);
 
-        idleCallbacks[0]();
+        idleCallbacks[0]({ didTimeout: false, timeRemaining: () => remaining });
+
         expect(mockLog2).toHaveBeenCalledTimes(2);
         expect(idleCallbacks).toHaveLength(2);
+      });
 
-        idleCallbacks[1]();
-        expect(mockLog2).toHaveBeenCalledTimes(3);
+      it('writes a single entry when the page was never idle', () => {
+        for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
+
+        idleCallbacks[0]({ didTimeout: true, timeRemaining: () => 0 });
+
+        expect(mockLog2).toHaveBeenCalledTimes(1);
         expect(idleCallbacks).toHaveLength(2);
-      } finally {
-        vi.unstubAllGlobals();
-        nowSpy.mockRestore();
-      }
+      });
     });
   });
 

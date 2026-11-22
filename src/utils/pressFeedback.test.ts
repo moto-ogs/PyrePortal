@@ -63,6 +63,23 @@ describe('installPressFeedback', () => {
     expect(button.hasAttribute('data-pressed')).toBe(true);
   });
 
+  it('keeps the first button pressed for its 120 ms when another is tapped right after', () => {
+    document.body.insertAdjacentHTML('beforeend', '<button id="second">2</button>');
+    const second = document.querySelector('#second')!;
+
+    press(button);
+    vi.advanceTimersByTime(30);
+    release(button);
+    vi.advanceTimersByTime(30);
+    press(second);
+
+    expect(button.hasAttribute('data-pressed')).toBe(true);
+    expect(second.hasAttribute('data-pressed')).toBe(true);
+
+    vi.advanceTimersByTime(60);
+    expect(button.hasAttribute('data-pressed')).toBe(false);
+  });
+
   it('ignores disabled buttons and non-interactive elements', () => {
     button.disabled = true;
     press(button);

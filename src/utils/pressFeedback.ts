@@ -5,39 +5,48 @@
  * pointer events of one component ends before the kiosk has painted it. This
  * marks the touched button with `data-pressed` on pointerdown and keeps the
  * mark for a minimum time. The pressed look itself lives in `index.css`.
+ *
+ * The minimum applies to buttons that stay mounted. A tap that changes the
+ * route replaces the page at once; the new page is the feedback there.
  */
 
 const PRESSED_ATTRIBUTE = 'data-pressed';
 const MIN_PRESS_MS = 120;
 
 export function installPressFeedback(): () => void {
-  let pressed: Element | null = null;
-  let pressedAt = 0;
-  let releaseTimer: ReturnType<typeof setTimeout> | undefined;
+  // Buttons currently held, by pointer, and pending releases, by button.
+  const held = new Map<number, { button: Element; at: number }>();
+  const releaseTimers = new Map<Element, ReturnType<typeof setTimeout>>();
 
-  const clear = () => {
-    clearTimeout(releaseTimer);
-    releaseTimer = undefined;
-    pressed?.removeAttribute(PRESSED_ATTRIBUTE);
-    pressed = null;
+  const release = (button: Element) => {
+    clearTimeout(releaseTimers.get(button));
+    releaseTimers.delete(button);
+    button.removeAttribute(PRESSED_ATTRIBUTE);
   };
 
   const onDown = (event: Event) => {
     const button = (event.target as Element | null)?.closest?.('button');
-    clear();
     if (!button || button.disabled) return;
-    pressed = button;
-    pressedAt = Date.now();
+    // A new press on a button that is still in its minimum hold keeps it pressed.
+    clearTimeout(releaseTimers.get(button));
+    releaseTimers.delete(button);
+    held.set((event as PointerEvent).pointerId, { button, at: Date.now() });
     button.setAttribute(PRESSED_ATTRIBUTE, '');
   };
 
-  const onUp = () => {
-    if (!pressed || releaseTimer !== undefined) return;
-    const remaining = MIN_PRESS_MS - (Date.now() - pressedAt);
+  const onUp = (event: Event) => {
+    const pointerId = (event as PointerEvent).pointerId;
+    const press = held.get(pointerId);
+    if (!press) return;
+    held.delete(pointerId);
+    const remaining = MIN_PRESS_MS - (Date.now() - press.at);
     if (remaining <= 0) {
-      clear();
+      release(press.button);
     } else {
-      releaseTimer = setTimeout(clear, remaining);
+      releaseTimers.set(
+        press.button,
+        setTimeout(() => release(press.button), remaining)
+      );
     }
   };
 
@@ -47,7 +56,9 @@ export function installPressFeedback(): () => void {
   document.addEventListener('pointercancel', onUp, options);
 
   return () => {
-    clear();
+    for (const { button } of held.values()) release(button);
+    for (const button of [...releaseTimers.keys()]) release(button);
+    held.clear();
     document.removeEventListener('pointerdown', onDown, options);
     document.removeEventListener('pointerup', onUp, options);
     document.removeEventListener('pointercancel', onUp, options);

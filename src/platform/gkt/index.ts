@@ -60,8 +60,8 @@ export function normalizeNfcPayload(
   return null;
 }
 
-// Longest time one flush may hold the main thread, and the longest an entry waits.
-const LOG_FLUSH_BUDGET_MS = 8;
+// Worst measured cost of one native log call, and the longest an entry waits.
+const LOG_WRITE_MAX_MS = 8;
 const LOG_FLUSH_MAX_DELAY_MS = 1000;
 
 class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
@@ -73,7 +73,9 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
   constructor() {
     super();
     // A reload or shell restart must not lose the entries still in the buffer.
-    window.addEventListener('pagehide', () => this.flushLogs(Infinity));
+    window.addEventListener('pagehide', () => {
+      while (this.logQueue.length > 0) this.writeNextLog();
+    });
   }
 
   async initializeNfc(): Promise<void> {
@@ -112,31 +114,43 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
   private scheduleLogFlush(): void {
     if (this.logFlushScheduled) return;
     this.logFlushScheduled = true;
-    const flush = () => this.flushLogs(LOG_FLUSH_BUDGET_MS);
     if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(flush, { timeout: LOG_FLUSH_MAX_DELAY_MS });
+      requestIdleCallback(deadline => this.flushLogs(deadline), {
+        timeout: LOG_FLUSH_MAX_DELAY_MS,
+      });
     } else {
-      setTimeout(flush, 0);
+      setTimeout(() => this.flushLogs(), 0);
     }
   }
 
-  /** Writes queued entries until the queue is empty or the time budget is used. */
-  private flushLogs(budgetMs: number): void {
+  /**
+   * Writes queued entries while the idle period has room for one more native
+   * call. Without idle time (forced by the timeout, or no idle API) it writes
+   * a single entry, so a busy page is never held for more than one call.
+   */
+  private flushLogs(deadline?: IdleDeadline): void {
     this.logFlushScheduled = false;
-    const start = performance.now();
-    let next = this.logQueue.shift();
-    while (next) {
-      try {
-        SYSTEM.log2('PyrePortal', next.entry);
-      } catch {
-        // eslint-disable-next-line no-console
-        console.log(next.entry);
-      }
-      next.resolve();
-      if (performance.now() - start >= budgetMs) break;
-      next = this.logQueue.shift();
-    }
+    const hasIdleTime = deadline !== undefined && !deadline.didTimeout;
+    do {
+      this.writeNextLog();
+    } while (
+      this.logQueue.length > 0 &&
+      hasIdleTime &&
+      deadline.timeRemaining() >= LOG_WRITE_MAX_MS
+    );
     if (this.logQueue.length > 0) this.scheduleLogFlush();
+  }
+
+  private writeNextLog(): void {
+    const next = this.logQueue.shift();
+    if (!next) return;
+    try {
+      SYSTEM.log2('PyrePortal', next.entry);
+    } catch {
+      // eslint-disable-next-line no-console
+      console.log(next.entry);
+    }
+    next.resolve();
   }
 }
 
