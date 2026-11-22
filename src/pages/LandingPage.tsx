@@ -66,7 +66,7 @@ function LandingPage() {
 
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* White container with shadow - Phoenix style */}
-        <div className="relative w-full max-w-2xl rounded-3xl bg-white/90 p-12 shadow-xl backdrop-blur-md">
+        <div className="relative w-full max-w-2xl rounded-3xl bg-white/90 p-12 shadow-xl">
           <div
             style={{
               display: 'flex',
@@ -146,7 +146,7 @@ function LandingPage() {
                 border: 'none',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
                 cursor: 'pointer',
-                transition: 'all 200ms ease-out',
+                transition: designSystem.transitions.base,
                 outline: 'none',
               }}
               onPointerDown={e => {

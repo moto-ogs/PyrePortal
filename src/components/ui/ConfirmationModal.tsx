@@ -36,7 +36,6 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
     onClose={onCancel}
     size="md"
     backgroundColor="#FFFFFF"
-    backdropBlur="6px"
     closeOnBackdropClick={!isLoading}
   >
     {/* Header Icon - pastel green pair (design-review v2) */}

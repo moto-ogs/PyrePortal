@@ -287,7 +287,7 @@ var SYSTEM = {
 
   //intern functions no comments
   mouselog: function (event) {
-    SYSTEM.log2('MOUSE', event.type + ' ' + event.pageX + ' ' + event.pageY + ' ' + location.href);
+    // No log line per tap: the native log call blocks the tap for several milliseconds.
     if (event.type == 'mousedown') {
       SYSTEM.checkforEscape(event.pageX, event.pageY);
     }

@@ -92,7 +92,7 @@ function NumpadButton({ onClick, isAction = false, children }: NumpadButtonProps
 }
 
 function PinPage() {
-  const { setAuthenticatedUser } = useUserStore();
+  const setAuthenticatedUser = useUserStore(state => state.setAuthenticatedUser);
   const [pin, setPin] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState<boolean>(false);
@@ -278,7 +278,7 @@ function PinPage() {
 
       <div className="flex min-h-screen items-center justify-center">
         {/* White container - Use grid layout for true full width */}
-        <div className="h-screen w-screen overflow-auto bg-white/90 p-8 backdrop-blur-md">
+        <div className="h-screen w-screen overflow-auto bg-white/90 p-8">
           {/* Header - 7-inch optimized */}
           <div
             style={{
@@ -328,7 +328,7 @@ function PinPage() {
                 border: `2px solid ${isLoading ? designSystem.gray[400] : designSystem.gray[200]}`,
                 width: 'fit-content',
                 margin: '0 auto 12px auto',
-                transition: 'all 300ms ease-out',
+                transition: 'border-color 300ms ease-out',
                 minHeight: '56px',
               }}
             >

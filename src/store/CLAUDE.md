@@ -147,10 +147,10 @@ Note: `fetchActivities` returns the data to the caller; it does not cache activi
 ```typescript
 function MyComponent() {
   // ✅ GOOD: Only re-renders when users or isLoading change
-  const { users, isLoading } = useUserStore(state => ({
-    users: state.users,
-    isLoading: state.isLoading,
-  }));
+  // An object selector needs `useShallow` from 'zustand/react/shallow'.
+  const { users, isLoading } = useUserStore(
+    useShallow(state => ({ users: state.users, isLoading: state.isLoading }))
+  );
 }
 ```
 
@@ -158,7 +158,7 @@ function MyComponent() {
 
 ```typescript
 function MyComponent() {
-  const { fetchTeachers } = useUserStore();
+  const fetchTeachers = useUserStore(state => state.fetchTeachers);
 
   useEffect(() => {
     void fetchTeachers(); // Call async action

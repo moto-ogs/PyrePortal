@@ -26,7 +26,7 @@ export const designSystem = {
     hoverElevate: '0 3px 10px rgba(15,23,42,0.045), 0 0 0 1px rgba(15,23,42,0.045)',
   },
 
-  // Glassmorphism Effects (blur retained for modal chrome; glass surfaces deprecated for flat)
+  // Glass surface colour. The blur token is unused: backdrop blur drops frames on the kiosk GPU.
   glass: {
     background: 'rgba(255,255,255,0.9)',
     blur: 'blur(20px)',
@@ -109,7 +109,6 @@ export const designSystem = {
   modal: {
     background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.98) 100%)',
     border: '1px solid rgba(229,231,235,0.5)',
-    blur: 'blur(20px)',
     shadow: '0 25px 50px -12px rgba(0,0,0,0.25), 0 8px 16px -8px rgba(53,88,168,0.15)',
     backdrop: 'rgba(0,0,0,0.4)',
   },
@@ -195,7 +194,9 @@ export const designSystem = {
 
   // Animation & Transitions
   transitions: {
-    base: 'all 200ms ease-out',
+    // Only the properties a press changes, and short: `all 200ms` let a quick
+    // tap end before its feedback was visible on the kiosk.
+    base: 'transform 100ms ease-out, background-color 100ms ease-out',
 
     // Legacy transition migrated from theme.ts (LandingPage logo)
     slow: 'all 0.75s',

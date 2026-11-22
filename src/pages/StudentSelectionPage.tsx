@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   ErrorModal,
@@ -52,7 +53,13 @@ interface LocationState {
 }
 
 function StudentSelectionPage() {
-  const { authenticatedUser, selectedSupervisors, clearTagScan } = useUserStore();
+  const { authenticatedUser, selectedSupervisors, clearTagScan } = useUserStore(
+    useShallow(state => ({
+      authenticatedUser: state.authenticatedUser,
+      selectedSupervisors: state.selectedSupervisors,
+      clearTagScan: state.clearTagScan,
+    }))
+  );
   const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as LocationState;

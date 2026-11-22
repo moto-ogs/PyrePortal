@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from 'react';
 import { useNavigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   countScopeOf,
@@ -74,7 +75,17 @@ export function useActivityScanningPage() {
     currentSession,
     selectedSupervisors,
     fetchCurrentSession,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      selectedActivity: state.selectedActivity,
+      selectedRoom: state.selectedRoom,
+      authenticatedUser: state.authenticatedUser,
+      rfid: state.rfid,
+      currentSession: state.currentSession,
+      selectedSupervisors: state.selectedSupervisors,
+      fetchCurrentSession: state.fetchCurrentSession,
+    }))
+  );
 
   const { currentScan, showModal, startScanning, stopScanning } = useRfidScanning();
 
@@ -86,7 +97,17 @@ export function useActivityScanningPage() {
     showScanModal,
     startPickupQueryMode,
     timeoutPickupQueryMode,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      hideScanModal: state.hideScanModal,
+      removeFromProcessingQueue: state.removeFromProcessingQueue,
+      resetScanMode: state.resetScanMode,
+      setScanResult: state.setScanResult,
+      showScanModal: state.showScanModal,
+      startPickupQueryMode: state.startPickupQueryMode,
+      timeoutPickupQueryMode: state.timeoutPickupQueryMode,
+    }))
+  );
 
   // Debug logging for selectedActivity
   useEffect(() => {

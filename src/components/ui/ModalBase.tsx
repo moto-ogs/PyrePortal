@@ -59,9 +59,6 @@ interface ModalBaseProps {
   /** Background color of the modal container. Default: white */
   backgroundColor?: string;
 
-  /** Backdrop blur amount. Default: '4px' */
-  backdropBlur?: string;
-
   /** Use fit-content width instead of 90vw. Default: false */
   autoWidth?: boolean;
 
@@ -107,7 +104,7 @@ interface ModalBaseProps {
  * Features:
  * - Uses native <dialog> element for proper accessibility
  * - Size presets: sm (500px), md (600px), lg (700px - default), xl (1060px)
- * - Default backdrop blur (4px) with optional customization
+ * - Dimmed backdrop without blur (blur drops frames on the kiosk GPU)
  * - Integrated timeout system with visual indicator
  * - Auto-contrast timeout indicator (dark on light backgrounds)
  * - Configurable backdrop click dismissal
@@ -129,7 +126,6 @@ export function ModalBase({
   children,
   size = 'lg',
   backgroundColor = '#FFFFFF',
-  backdropBlur,
   timeout,
   showTimeoutIndicator = true,
   timeoutResetKey,
@@ -224,13 +220,12 @@ export function ModalBase({
 
   const shouldShowIndicator = showTimeoutIndicator && timeout !== undefined;
 
-  // Phoenix modal chrome: light (white) backgrounds get the translucent gradient
-  // + blur; full-bleed scan-result modals keep their solid state color.
+  // Phoenix modal chrome: light (white) backgrounds get the near-opaque gradient;
+  // full-bleed scan-result modals keep their solid state color.
   const isLight = isLightBackground(backgroundColor);
   const containerBackground = isLight ? designSystem.modal.background : backgroundColor;
 
-  // Build dialog style with optional backdrop blur override
-  const dialogStyle: React.CSSProperties & { '--modal-backdrop-blur'?: string } = {
+  const dialogStyle: React.CSSProperties = {
     backgroundColor: 'transparent',
     border: 'none',
     padding: 0,
@@ -244,11 +239,6 @@ export function ModalBase({
     // Remove default focus outline (dialog receives focus on showModal())
     outline: 'none',
   };
-
-  // Only set custom property when backdropBlur is explicitly provided
-  if (backdropBlur !== undefined) {
-    dialogStyle['--modal-backdrop-blur'] = `blur(${backdropBlur})`;
-  }
 
   return (
     <dialog ref={dialogRef} style={dialogStyle}>
@@ -275,8 +265,6 @@ export function ModalBase({
           minWidth: autoWidth ? 'min(700px, 90vw)' : undefined,
           textAlign: 'center',
           boxShadow: designSystem.modal.shadow,
-          backdropFilter: isLight ? designSystem.modal.blur : undefined,
-          WebkitBackdropFilter: isLight ? designSystem.modal.blur : undefined,
           position: 'relative',
           maxHeight: scrollable
             ? `calc(100dvh - 34px - ${sizePreset.padding} - ${sizePreset.padding})`
