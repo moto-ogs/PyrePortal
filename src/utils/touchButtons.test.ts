@@ -186,6 +186,20 @@ describe('activation on touch', () => {
     expect(onBackdrop).toHaveBeenCalledTimes(1);
   });
 
+  it('lets a mouse click through when its press began before a touch that sent no click', () => {
+    const backdrop = document.querySelector('#backdrop')!;
+    const onBackdrop = vi.fn<() => void>();
+    backdrop.addEventListener('click', onBackdrop);
+
+    backdrop.dispatchEvent(pointer('pointerdown', 1, 'mouse'));
+    button.dispatchEvent(pointer('pointerdown', 7));
+    button.dispatchEvent(pointer('pointerup', 7));
+    backdrop.dispatchEvent(pointer('pointerup', 1, 'mouse'));
+    backdrop.dispatchEvent(pointer('click', 1, 'mouse'));
+
+    expect(onBackdrop).toHaveBeenCalledTimes(1);
+  });
+
   it('lets a keyboard click through right after a touch', () => {
     const second = document.querySelector<HTMLButtonElement>('#b')!;
     const onSecond = vi.fn<() => void>();

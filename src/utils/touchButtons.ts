@@ -75,6 +75,8 @@ export function installTouchButtons(): () => void {
   const onUp = (event: Event) => {
     const pointerId = (event as PointerEvent).pointerId;
     const press = held.get(pointerId);
+    // The click after this lift belongs to this pointer, not to an earlier touch.
+    if (!press?.activated) lastActivatedUpAt = -Infinity;
     if (!press) return;
     held.delete(pointerId);
     if (press.activated) {
