@@ -69,7 +69,7 @@ const LOG_OVERDUE_RETRY_MS = 50;
 class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
   readonly platform = 'gkt' as const;
 
-  private readonly logQueue: { entry: string; resolve: () => void }[] = [];
+  private readonly logQueue: { entry: string; queuedAt: number; resolve: () => void }[] = [];
   private logFlushScheduled = false;
 
   constructor() {
@@ -110,12 +110,12 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
    */
   persistLog(entry: string): Promise<void> {
     return new Promise(resolve => {
-      this.logQueue.push({ entry, resolve });
-      this.scheduleLogFlush();
+      this.logQueue.push({ entry, queuedAt: Date.now(), resolve });
+      this.scheduleLogFlush(LOG_FLUSH_MAX_DELAY_MS);
     });
   }
 
-  private scheduleLogFlush(maxDelayMs = LOG_FLUSH_MAX_DELAY_MS): void {
+  private scheduleLogFlush(maxDelayMs: number): void {
     if (this.logFlushScheduled) return;
     this.logFlushScheduled = true;
     if (typeof requestIdleCallback === 'function') {
@@ -125,23 +125,32 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
     }
   }
 
+  /** Time the oldest queued entry may still wait before it is overdue. */
+  private oldestLogSlackMs(): number {
+    const oldest = this.logQueue[0];
+    return oldest
+      ? LOG_FLUSH_MAX_DELAY_MS - (Date.now() - oldest.queuedAt)
+      : LOG_FLUSH_MAX_DELAY_MS;
+  }
+
   /**
    * Writes queued entries while the idle period has room for one more native
-   * call. Without idle time (forced by the timeout, or no idle API) it writes
-   * a single entry, so a busy page is never held for more than one call, and
-   * asks for the next turn soon so that overdue entries do not wait again.
+   * call. When the oldest entry is overdue (or there is no idle API) it writes
+   * a single entry whatever the idle time, so a busy page is never held for
+   * more than one call, and asks for the next turn soon.
    */
   private flushLogs(deadline?: IdleDeadline): void {
     this.logFlushScheduled = false;
-    if (deadline === undefined || deadline.didTimeout) {
+    if (deadline === undefined || deadline.didTimeout || this.oldestLogSlackMs() <= 0) {
       this.writeNextLog();
-      if (this.logQueue.length > 0) this.scheduleLogFlush(LOG_OVERDUE_RETRY_MS);
-      return;
+    } else {
+      while (this.logQueue.length > 0 && deadline.timeRemaining() >= LOG_WRITE_MAX_MS) {
+        this.writeNextLog();
+      }
     }
-    while (this.logQueue.length > 0 && deadline.timeRemaining() >= LOG_WRITE_MAX_MS) {
-      this.writeNextLog();
+    if (this.logQueue.length > 0) {
+      this.scheduleLogFlush(Math.max(LOG_OVERDUE_RETRY_MS, this.oldestLogSlackMs()));
     }
-    if (this.logQueue.length > 0) this.scheduleLogFlush();
   }
 
   private writeNextLog(): void {

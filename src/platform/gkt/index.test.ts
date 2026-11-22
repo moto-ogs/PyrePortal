@@ -584,13 +584,39 @@ describe('GKTAdapter', () => {
         expect(idleCallbacks).toHaveLength(2);
       });
 
+      it('does not let short idle periods postpone an entry beyond one second', () => {
+        vi.useFakeTimers();
+        try {
+          void adapter.persistLog('a');
+          const tooShort = { didTimeout: false, timeRemaining: () => 1 };
+
+          vi.advanceTimersByTime(600);
+          idleCallbacks[0](tooShort);
+          expect(mockLog2).not.toHaveBeenCalled();
+          // The retry may only use what is left of the entry's second.
+          expect(idleTimeouts).toEqual([1000, 400]);
+
+          vi.advanceTimersByTime(400);
+          idleCallbacks[1](tooShort);
+          expect(mockLog2).toHaveBeenCalledTimes(1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
       it('writes a single entry when the page was never idle and retries within 50 ms', () => {
-        for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
+        vi.useFakeTimers();
+        try {
+          for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
 
-        idleCallbacks[0]({ didTimeout: true, timeRemaining: () => 0 });
+          vi.advanceTimersByTime(1000);
+          idleCallbacks[0]({ didTimeout: true, timeRemaining: () => 0 });
 
-        expect(mockLog2).toHaveBeenCalledTimes(1);
-        expect(idleTimeouts).toEqual([1000, 50]);
+          expect(mockLog2).toHaveBeenCalledTimes(1);
+          expect(idleTimeouts).toEqual([1000, 50]);
+        } finally {
+          vi.useRealTimers();
+        }
       });
     });
   });
