@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   SelectableGrid,
@@ -30,7 +31,18 @@ function StaffSelectionPage() {
     error,
     selectedActivity,
     authenticatedUser,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      users: state.users,
+      fetchTeachers: state.fetchTeachers,
+      selectedSupervisors: state.selectedSupervisors,
+      toggleSupervisor: state.toggleSupervisor,
+      isLoading: state.isLoading,
+      error: state.error,
+      selectedActivity: state.selectedActivity,
+      authenticatedUser: state.authenticatedUser,
+    }))
+  );
 
   const navigate = useNavigate();
   const logger = useMemo(() => createLogger('StaffSelectionPage'), []);

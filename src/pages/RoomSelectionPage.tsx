@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   ErrorModal,
@@ -52,7 +53,20 @@ function RoomSelectionPage() {
     selectRoom,
     setCurrentSession,
     saveLastSessionData,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      authenticatedUser: state.authenticatedUser,
+      selectedActivity: state.selectedActivity,
+      selectedSupervisors: state.selectedSupervisors,
+      rooms: state.rooms,
+      isLoading: state.isLoading,
+      error: state.error,
+      fetchRooms: state.fetchRooms,
+      selectRoom: state.selectRoom,
+      setCurrentSession: state.setCurrentSession,
+      saveLastSessionData: state.saveLastSessionData,
+    }))
+  );
 
   const [isStartingSession, setIsStartingSession] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);

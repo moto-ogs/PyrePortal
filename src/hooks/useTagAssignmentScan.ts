@@ -28,7 +28,7 @@ const SCAN_INVOKE_TIMEOUT_MS = 20_000;
  * check against the backend and the unassign flow (student vs. staff).
  */
 export function useTagAssignmentScan() {
-  const { authenticatedUser } = useUserStore();
+  const authenticatedUser = useUserStore(state => state.authenticatedUser);
 
   const [isLoading, setIsLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);

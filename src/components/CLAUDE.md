@@ -112,10 +112,17 @@ Use `SelectionPageLayout` with `SelectableGrid`, `SelectableCard`, `PaginationCo
 ### Zustand Store Access
 
 ```typescript
+import { useShallow } from 'zustand/react/shallow';
+
 import { useUserStore } from '../store/userStore';
 
 function MyComponent() {
-  const { authenticatedUser, fetchTeachers } = useUserStore();
+  // Always pass a selector. `useUserStore()` without one re-renders the
+  // component on every store change, e.g. the network status after each API call.
+  const authenticatedUser = useUserStore(state => state.authenticatedUser);
+  const { users, fetchTeachers } = useUserStore(
+    useShallow(state => ({ users: state.users, fetchTeachers: state.fetchTeachers }))
+  );
 
   // Use local state for view-only concerns.
   const [showErrorModal, setShowErrorModal] = useState(false);

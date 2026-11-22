@@ -2,6 +2,7 @@ import { faPlay, faTrashCan } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   ErrorModal,
@@ -85,7 +86,23 @@ function SessionHistoryPage() {
     isValidatingLastSession,
     recreateSession,
     invalidateSessionRecreation,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      authenticatedUser: state.authenticatedUser,
+      currentSession: state.currentSession,
+      selectedActivity: state.selectedActivity,
+      selectedRoom: state.selectedRoom,
+      selectedSupervisors: state.selectedSupervisors,
+      sessionSettings: state.sessionSettings,
+      loadSessionSettings: state.loadSessionSettings,
+      removeSessionHistoryEntry: state.removeSessionHistoryEntry,
+      clearSessionHistory: state.clearSessionHistory,
+      validateAndRecreateSession: state.validateAndRecreateSession,
+      isValidatingLastSession: state.isValidatingLastSession,
+      recreateSession: state.recreateSession,
+      invalidateSessionRecreation: state.invalidateSessionRecreation,
+    }))
+  );
   const navigate = useNavigate();
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');

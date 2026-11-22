@@ -60,8 +60,21 @@ export function normalizeNfcPayload(
   return null;
 }
 
+// Longest time one flush may hold the main thread, and the longest an entry waits.
+const LOG_FLUSH_BUDGET_MS = 8;
+const LOG_FLUSH_MAX_DELAY_MS = 1000;
+
 class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
   readonly platform = 'gkt' as const;
+
+  private readonly logQueue: { entry: string; resolve: () => void }[] = [];
+  private logFlushScheduled = false;
+
+  constructor() {
+    super();
+    // A reload or shell restart must not lose the entries still in the buffer.
+    window.addEventListener('pagehide', () => this.flushLogs(Infinity));
+  }
 
   async initializeNfc(): Promise<void> {
     // Register NFC callback with system.js — handles all payload shapes.
@@ -84,13 +97,46 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
     });
   }
 
-  async persistLog(entry: string): Promise<void> {
-    try {
-      SYSTEM.log2('PyrePortal', entry);
-    } catch {
-      // eslint-disable-next-line no-console
-      console.log(entry);
+  /**
+   * Buffers the entry and writes it when the page is idle. A native log call
+   * blocks the main thread for several milliseconds on the GKT hardware, so it
+   * must not run inside a tap or scan handler. Resolves once the entry is written.
+   */
+  persistLog(entry: string): Promise<void> {
+    return new Promise(resolve => {
+      this.logQueue.push({ entry, resolve });
+      this.scheduleLogFlush();
+    });
+  }
+
+  private scheduleLogFlush(): void {
+    if (this.logFlushScheduled) return;
+    this.logFlushScheduled = true;
+    const flush = () => this.flushLogs(LOG_FLUSH_BUDGET_MS);
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(flush, { timeout: LOG_FLUSH_MAX_DELAY_MS });
+    } else {
+      setTimeout(flush, 0);
     }
+  }
+
+  /** Writes queued entries until the queue is empty or the time budget is used. */
+  private flushLogs(budgetMs: number): void {
+    this.logFlushScheduled = false;
+    const start = performance.now();
+    let next = this.logQueue.shift();
+    while (next) {
+      try {
+        SYSTEM.log2('PyrePortal', next.entry);
+      } catch {
+        // eslint-disable-next-line no-console
+        console.log(next.entry);
+      }
+      next.resolve();
+      if (performance.now() - start >= budgetMs) break;
+      next = this.logQueue.shift();
+    }
+    if (this.logQueue.length > 0) this.scheduleLogFlush();
   }
 }
 

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import { countScopeOf } from '../../services/activityScanningRules';
 import type { RfidScanResult } from '../../services/api';
@@ -29,7 +30,14 @@ interface UseCheckoutDestinationParams {
  * One booking runs at a time: a second tap while it is in flight is ignored.
  */
 export function useCheckoutDestination({ schulhofRoomId, wcRoomId }: UseCheckoutDestinationParams) {
-  const { authenticatedUser, selectedSupervisors, setScanResult, showScanModal } = useUserStore();
+  const { authenticatedUser, selectedSupervisors, setScanResult, showScanModal } = useUserStore(
+    useShallow(state => ({
+      authenticatedUser: state.authenticatedUser,
+      selectedSupervisors: state.selectedSupervisors,
+      setScanResult: state.setScanResult,
+      showScanModal: state.showScanModal,
+    }))
+  );
 
   // State for checkout destination selection (unified: Raumwechsel, Schulhof, nach Hause)
   const [checkoutDestinationState, setDestinationState] = useState<CheckoutDestinationState | null>(

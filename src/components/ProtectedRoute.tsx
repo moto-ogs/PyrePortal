@@ -19,7 +19,7 @@ interface ProtectedRouteProps {
  * - With custom fallback: <ProtectedRoute condition={hasRoom} fallbackPath="/rooms"><CreatePage /></ProtectedRoute>
  */
 function ProtectedRoute({ children, condition = true, fallbackPath }: ProtectedRouteProps) {
-  const { authenticatedUser } = useUserStore();
+  const authenticatedUser = useUserStore(state => state.authenticatedUser);
   const isAuthenticated = !!authenticatedUser;
 
   // Not authenticated - redirect to landing

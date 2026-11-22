@@ -16,11 +16,14 @@ import App from './App';
 import { fetchSchoolName, initializeApi } from './services/api';
 import { initErrorReporting } from './services/errorReporting';
 import { createLogger, serializeError } from './utils/logger';
+import { installPressFeedback } from './utils/pressFeedback';
 
 // Prevent FontAwesome from auto-injecting CSS (we import it manually above)
 config.autoAddCss = false;
 
 const logger = createLogger('main');
+
+installPressFeedback();
 
 // Before the API so startup failures are reported too
 const errorReportingEnabled = initErrorReporting();

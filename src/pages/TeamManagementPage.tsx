@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   ErrorModal,
@@ -39,7 +40,20 @@ function TeamManagementPage() {
     error,
     authenticatedUser,
     currentSession,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      users: state.users,
+      fetchTeachers: state.fetchTeachers,
+      selectedSupervisors: state.selectedSupervisors,
+      toggleSupervisor: state.toggleSupervisor,
+      setSelectedSupervisors: state.setSelectedSupervisors,
+      loadSessionSupervisors: state.loadSessionSupervisors,
+      isLoading: state.isLoading,
+      error: state.error,
+      authenticatedUser: state.authenticatedUser,
+      currentSession: state.currentSession,
+    }))
+  );
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');

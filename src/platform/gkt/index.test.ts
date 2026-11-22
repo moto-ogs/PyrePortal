@@ -505,6 +505,63 @@ describe('GKTAdapter', () => {
 
       consoleSpy.mockRestore();
     });
+
+    it('does not call the native bridge inside the caller task', () => {
+      const pending = adapter.persistLog('deferred entry');
+      expect(mockLog2).not.toHaveBeenCalled();
+      return pending;
+    });
+
+    it('writes buffered entries in the order they were logged', async () => {
+      await Promise.all(['first', 'second', 'third'].map(entry => adapter.persistLog(entry)));
+      expect(mockLog2.mock.calls.map((call: unknown[]) => call[1])).toEqual([
+        'first',
+        'second',
+        'third',
+      ]);
+    });
+
+    it('writes every buffered entry when the page is unloaded', () => {
+      void adapter.persistLog('before reload 1');
+      void adapter.persistLog('before reload 2');
+
+      window.dispatchEvent(new Event('pagehide'));
+
+      expect(mockLog2.mock.calls.map((call: unknown[]) => call[1])).toEqual([
+        'before reload 1',
+        'before reload 2',
+      ]);
+    });
+
+    it('stops a flush when the bridge is slow and continues later', async () => {
+      // Each native call costs 5 ms here; the time budget allows two per flush.
+      let now = 0;
+      const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => now);
+      mockLog2.mockImplementation(() => {
+        now += 5;
+      });
+      const idleCallbacks: (() => void)[] = [];
+      vi.stubGlobal('requestIdleCallback', (callback: () => void) => {
+        idleCallbacks.push(callback);
+        return idleCallbacks.length;
+      });
+
+      try {
+        for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
+        expect(idleCallbacks).toHaveLength(1);
+
+        idleCallbacks[0]();
+        expect(mockLog2).toHaveBeenCalledTimes(2);
+        expect(idleCallbacks).toHaveLength(2);
+
+        idleCallbacks[1]();
+        expect(mockLog2).toHaveBeenCalledTimes(3);
+        expect(idleCallbacks).toHaveLength(2);
+      } finally {
+        vi.unstubAllGlobals();
+        nowSpy.mockRestore();
+      }
+    });
   });
 
   describe('restartApp', () => {

@@ -846,8 +846,6 @@ function StaffClockPage() {
                 width: '100%',
                 maxWidth: '820px',
                 background: designSystem.glass.background,
-                backdropFilter: designSystem.glass.blur,
-                WebkitBackdropFilter: designSystem.glass.blur,
                 border: '1px solid rgba(229,231,235,0.5)',
                 borderRadius: '32px',
                 boxShadow: designSystem.shadows.button,

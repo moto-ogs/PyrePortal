@@ -61,7 +61,7 @@ const texts = {
  * 6. Show confirmation and options to continue or go back
  */
 function TagAssignmentPage() {
-  const { authenticatedUser } = useUserStore();
+  const authenticatedUser = useUserStore(state => state.authenticatedUser);
   const navigate = useNavigate();
   const location = useLocation();
 

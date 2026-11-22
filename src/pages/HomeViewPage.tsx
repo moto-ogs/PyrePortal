@@ -2,6 +2,7 @@ import { faClockRotateLeft } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import { BackgroundWrapper } from '../components/background-wrapper';
 import {
@@ -15,6 +16,7 @@ import { isSessionLostError } from '../services/apiErrors';
 import { useUserStore } from '../store/userStore';
 import { designSystem } from '../styles/designSystem';
 import { createLogger, logNavigation, logUserAction, serializeError } from '../utils/logger';
+import { touchPressHandlers } from '../utils/pressHandlers';
 
 const logger = createLogger('HomeViewPage');
 
@@ -86,6 +88,26 @@ function getActivitySubtitle(currentSession: CurrentSession | null): string {
   return currentSession ? texts.continueSubtitle : '';
 }
 
+// Pressed and resting looks per button kind. The handlers style the element
+// directly, so touching a button does not re-render the page.
+const PILL_PRESS_STYLES = {
+  pressed: { transform: designSystem.scales.activeSmall, backgroundColor: designSystem.gray[100] },
+  rest: { transform: 'scale(1)', backgroundColor: designSystem.colors.white },
+};
+const PILL_PRESS = touchPressHandlers(PILL_PRESS_STYLES.pressed, PILL_PRESS_STYLES.rest);
+const LOGOUT_PRESS = touchPressHandlers(
+  { transform: designSystem.scales.activeSmall, backgroundColor: designSystem.pastel.red.bg },
+  { transform: 'scale(1)', backgroundColor: designSystem.colors.white }
+);
+const CARD_PRESS = touchPressHandlers(
+  { transform: designSystem.scales.active, boxShadow: '0 1px 2px rgba(0, 0, 0, 0.06)' },
+  { transform: 'scale(1)', boxShadow: designSystem.surface.shadow }
+);
+const STAFF_CLOCK_PRESS = touchPressHandlers(
+  { transform: designSystem.scales.active, boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)' },
+  { transform: 'scale(1)', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)' }
+);
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -99,9 +121,18 @@ function HomeViewPage() {
     fetchCurrentSession,
     loadSessionSettings,
     invalidateSessionRecreation,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      authenticatedUser: state.authenticatedUser,
+      currentSession: state.currentSession,
+      sessionSettings: state.sessionSettings,
+      logout: state.logout,
+      fetchCurrentSession: state.fetchCurrentSession,
+      loadSessionSettings: state.loadSessionSettings,
+      invalidateSessionRecreation: state.invalidateSessionRecreation,
+    }))
+  );
   const navigate = useNavigate();
-  const [touchedButton, setTouchedButton] = useState<string | null>(null);
   const [showEndSessionModal, setShowEndSessionModal] = useState(false);
   const [endSessionFailed, setEndSessionFailed] = useState(false);
 
@@ -146,7 +177,6 @@ function HomeViewPage() {
   };
 
   const handleLogout = async () => {
-    setTouchedButton(null);
     if (currentSession) {
       setShowEndSessionModal(true);
     } else {
@@ -160,7 +190,6 @@ function HomeViewPage() {
   };
 
   const handleTagAssignment = () => {
-    setTouchedButton(null);
     logNavigation('Home View', '/tag-assignment');
     void navigate('/tag-assignment');
   };
@@ -171,7 +200,6 @@ function HomeViewPage() {
   };
 
   const handleSessionHistory = () => {
-    setTouchedButton(null);
     logNavigation('Home View', '/session-history');
     void navigate('/session-history');
   };
@@ -192,7 +220,6 @@ function HomeViewPage() {
   };
 
   const handleStaffClock = () => {
-    setTouchedButton(null);
     logNavigation('Home View', '/staff-clock');
     void navigate('/staff-clock');
   };
@@ -234,10 +261,7 @@ function HomeViewPage() {
           <button
             type="button"
             onClick={handleTagAssignment}
-            onTouchStart={() => setTouchedButton('tag')}
-            onTouchEnd={() => setTouchedButton(null)}
-            onTouchCancel={() => setTouchedButton(null)}
-            onPointerLeave={() => setTouchedButton(current => (current === 'tag' ? null : current))}
+            {...PILL_PRESS}
             style={{
               height: '68px',
               display: 'flex',
@@ -246,15 +270,14 @@ function HomeViewPage() {
               gap: '12px',
               padding: '0 32px',
               // Neutral white pill with gray icon/text (design-review v2)
-              backgroundColor:
-                touchedButton === 'tag' ? designSystem.gray[100] : designSystem.colors.white,
+              backgroundColor: PILL_PRESS_STYLES.rest.backgroundColor,
               border: `1px solid ${designSystem.gray[200]}`,
               borderRadius: '34px',
               cursor: 'pointer',
               transition: designSystem.transitions.base,
               outline: 'none',
               boxShadow: designSystem.shadows.sm,
-              transform: touchedButton === 'tag' ? designSystem.scales.activeSmall : 'scale(1)',
+              transform: 'scale(1)',
             }}
           >
             <ContactlessPaymentIcon size={28} color={designSystem.gray[700]} />
@@ -282,12 +305,7 @@ function HomeViewPage() {
           <button
             type="button"
             onClick={handleLogout}
-            onTouchStart={() => setTouchedButton('logout')}
-            onTouchEnd={() => setTouchedButton(null)}
-            onTouchCancel={() => setTouchedButton(null)}
-            onPointerLeave={() =>
-              setTouchedButton(current => (current === 'logout' ? null : current))
-            }
+            {...LOGOUT_PRESS}
             style={{
               height: '68px',
               display: 'flex',
@@ -295,15 +313,14 @@ function HomeViewPage() {
               justifyContent: 'center',
               gap: '12px',
               padding: '0 32px',
-              backgroundColor:
-                touchedButton === 'logout' ? designSystem.pastel.red.bg : designSystem.colors.white,
+              backgroundColor: designSystem.colors.white,
               border: `1px solid ${designSystem.pastel.red.accent}`,
               borderRadius: '34px',
               cursor: 'pointer',
               transition: designSystem.transitions.base,
               outline: 'none',
               boxShadow: designSystem.shadows.sm,
-              transform: touchedButton === 'logout' ? designSystem.scales.activeSmall : 'scale(1)',
+              transform: 'scale(1)',
             }}
           >
             <svg
@@ -380,8 +397,7 @@ function HomeViewPage() {
               {/* Activity Button - Phoenix Clean Style */}
               <button
                 onClick={currentSession ? handleContinueActivity : handleStartActivity}
-                onTouchStart={() => setTouchedButton('activity')}
-                onTouchEnd={() => setTouchedButton(null)}
+                {...CARD_PRESS}
                 style={{
                   backgroundColor: designSystem.surface.background,
                   border: `1px solid ${designSystem.surface.border}`,
@@ -395,11 +411,8 @@ function HomeViewPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '16px',
-                  transform: touchedButton === 'activity' ? 'scale(0.98)' : 'scale(1)',
-                  boxShadow:
-                    touchedButton === 'activity'
-                      ? '0 1px 2px rgba(0, 0, 0, 0.06)'
-                      : designSystem.surface.shadow,
+                  transform: 'scale(1)',
+                  boxShadow: designSystem.surface.shadow,
                   cursor: 'pointer',
                 }}
               >
@@ -447,8 +460,7 @@ function HomeViewPage() {
               {/* Team Management Button - Phoenix Clean Style */}
               <button
                 onClick={handleTeamManagement}
-                onTouchStart={() => setTouchedButton('team')}
-                onTouchEnd={() => setTouchedButton(null)}
+                {...CARD_PRESS}
                 style={{
                   backgroundColor: designSystem.surface.background,
                   border: `1px solid ${designSystem.surface.border}`,
@@ -463,11 +475,8 @@ function HomeViewPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '16px',
-                  transform: touchedButton === 'team' ? 'scale(0.98)' : 'scale(1)',
-                  boxShadow:
-                    touchedButton === 'team'
-                      ? '0 1px 2px rgba(0, 0, 0, 0.06)'
-                      : designSystem.surface.shadow,
+                  transform: 'scale(1)',
+                  boxShadow: designSystem.surface.shadow,
                 }}
               >
                 {/* Content */}
@@ -519,9 +528,7 @@ function HomeViewPage() {
             <button
               type="button"
               onClick={handleStaffClock}
-              onTouchStart={() => setTouchedButton('staff-clock')}
-              onTouchEnd={() => setTouchedButton(null)}
-              onTouchCancel={() => setTouchedButton(null)}
+              {...STAFF_CLOCK_PRESS}
               style={{
                 width: '100%',
                 minHeight: '148px',
@@ -535,12 +542,9 @@ function HomeViewPage() {
                 borderRadius: '28px',
                 cursor: 'pointer',
                 outline: 'none',
-                transition: 'all 300ms ease-out',
-                transform: touchedButton === 'staff-clock' ? 'scale(0.98)' : 'scale(1)',
-                boxShadow:
-                  touchedButton === 'staff-clock'
-                    ? '0 4px 12px rgba(0, 0, 0, 0.1)'
-                    : '0 8px 30px rgba(0, 0, 0, 0.12)',
+                transition: designSystem.transitions.base,
+                transform: 'scale(1)',
+                boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
               }}
             >
               <span
@@ -598,28 +602,21 @@ function HomeViewPage() {
             <button
               type="button"
               onClick={handleSessionHistory}
-              onTouchStart={() => setTouchedButton('history')}
-              onTouchEnd={() => setTouchedButton(null)}
-              onTouchCancel={() => setTouchedButton(null)}
-              onPointerLeave={() =>
-                setTouchedButton(current => (current === 'history' ? null : current))
-              }
+              {...PILL_PRESS}
               style={{
                 height: '68px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
                 padding: '0 32px',
-                backgroundColor:
-                  touchedButton === 'history' ? designSystem.gray[100] : designSystem.colors.white,
+                backgroundColor: PILL_PRESS_STYLES.rest.backgroundColor,
                 border: `1px solid ${designSystem.gray[200]}`,
                 borderRadius: '34px',
                 cursor: 'pointer',
                 transition: designSystem.transitions.base,
                 outline: 'none',
                 boxShadow: designSystem.shadows.sm,
-                transform:
-                  touchedButton === 'history' ? designSystem.scales.activeSmall : 'scale(1)',
+                transform: 'scale(1)',
               }}
             >
               <FontAwesomeIcon

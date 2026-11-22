@@ -92,7 +92,7 @@ function NumpadButton({ onClick, isAction = false, children }: NumpadButtonProps
 }
 
 function PinPage() {
-  const { setAuthenticatedUser } = useUserStore();
+  const setAuthenticatedUser = useUserStore(state => state.setAuthenticatedUser);
   const [pin, setPin] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState<boolean>(false);

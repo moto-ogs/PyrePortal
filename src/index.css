@@ -60,11 +60,16 @@
   }
 }
 
-/* Native dialog backdrop with blur effect */
+/* Native dialog backdrop: plain dimming. Blur drops frames on the kiosk GPU. */
 dialog::backdrop {
   background-color: rgba(0, 0, 0, 0.4);
-  backdrop-filter: var(--modal-backdrop-blur, blur(4px));
-  -webkit-backdrop-filter: var(--modal-backdrop-blur, blur(4px));
+}
+
+/* Pressed state, set by utils/pressFeedback.ts for at least 120 ms per tap.
+   No transition, so the first frame after the touch already shows it. */
+button[data-pressed] {
+  transform: scale(0.96) !important;
+  transition: none !important;
 }
 
 /* Modal entrance motion (phoenix modal.tsx). Runs each time the native

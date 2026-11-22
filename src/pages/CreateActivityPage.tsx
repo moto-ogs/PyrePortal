@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   SelectableGrid,
@@ -37,7 +38,17 @@ function CreateActivityPage() {
     fetchActivities,
     setSelectedActivity,
     selectedActivity,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      authenticatedUser: state.authenticatedUser,
+      isLoading: state.isLoading,
+      error: state.error,
+      logout: state.logout,
+      fetchActivities: state.fetchActivities,
+      setSelectedActivity: state.setSelectedActivity,
+      selectedActivity: state.selectedActivity,
+    }))
+  );
 
   const [activities, setActivities] = useState<ActivityResponse[]>([]);
   const [isFetching, setIsFetching] = useState(false);
