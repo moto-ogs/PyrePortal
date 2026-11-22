@@ -1,6 +1,6 @@
 import { faDeleteLeft } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 
 import { BackgroundWrapper } from '../components/background-wrapper';
@@ -42,20 +42,9 @@ const NUMPAD_SHADOW = '0 3px 8px rgba(0, 0, 0, 0.1)';
 const NUMPAD_SHADOW_PRESSED = '0 1px 2px rgba(0, 0, 0, 0.1)';
 
 function NumpadButton({ onClick, isAction = false, children }: NumpadButtonProps) {
-  // A touch counts when the finger lands, not when it lifts. Fast typing puts
-  // the next finger down before the last one is up; the WebView then sends
-  // pointer events but no click, and the digit would be lost.
-  const enteredByTouch = useRef(false);
   return (
     <button
-      onClick={() => {
-        // The click that follows a touch was already handled on pointerdown.
-        if (enteredByTouch.current) {
-          enteredByTouch.current = false;
-          return;
-        }
-        onClick();
-      }}
+      onClick={onClick}
       style={{
         width: '100%',
         height: '95px',
@@ -76,8 +65,6 @@ function NumpadButton({ onClick, isAction = false, children }: NumpadButtonProps
         boxShadow: NUMPAD_SHADOW,
       }}
       onPointerDown={e => {
-        enteredByTouch.current = e.pointerType === 'touch';
-        if (enteredByTouch.current) onClick();
         e.currentTarget.style.transform = designSystem.scales.activeSmall;
         e.currentTarget.style.backgroundColor = isAction
           ? designSystem.gray[100]

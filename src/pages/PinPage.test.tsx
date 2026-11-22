@@ -530,44 +530,6 @@ describe('PinPage', () => {
   // NumpadButton pointer events (components use onPointerDown/onPointerUp)
   // =========================================================================
 
-  // Fast typing on neighbouring keys puts the next finger down before the last
-  // one lifts. The WebView then sends no click at all, only pointer events.
-  it('enters every digit when touches overlap and no click is sent', () => {
-    const { container } = render(
-      <MemoryRouter>
-        <PinPage />
-      </MemoryRouter>
-    );
-    const filledDots = () =>
-      Array.from(getDots(container)).filter(
-        dot => (dot as HTMLElement).style.backgroundColor === '#111827'
-      ).length;
-
-    for (const digit of ['1', '2', '3']) {
-      fireEvent.pointerDown(screen.getByText(digit).closest('button')!, { pointerType: 'touch' });
-    }
-
-    expect(filledDots()).toBe(3);
-  });
-
-  it('enters a digit once when a touch is followed by its click', () => {
-    const { container } = render(
-      <MemoryRouter>
-        <PinPage />
-      </MemoryRouter>
-    );
-    const button1 = screen.getByText('1').closest('button')!;
-
-    fireEvent.pointerDown(button1, { pointerType: 'touch' });
-    fireEvent.pointerUp(button1, { pointerType: 'touch' });
-    fireEvent.click(button1);
-
-    const filled = Array.from(getDots(container)).filter(
-      dot => (dot as HTMLElement).style.backgroundColor === '#111827'
-    );
-    expect(filled).toHaveLength(1);
-  });
-
   it('handles pointer events on numpad buttons', () => {
     render(
       <MemoryRouter>

@@ -46,6 +46,13 @@ import { PillButton } from './ui/PillButton';
 
 Keep `BackButton` as the standard navigation primitive unless a screen needs unusual back behavior.
 
+Every `<button>` gets its touch behaviour from `utils/touchButtons.ts`, installed once in `main.tsx`:
+
+- `onClick` runs when the finger lands, not when it lifts. Write a normal `onClick`; do not add `onPointerDown`/`onTouchStart` handlers to trigger actions.
+- The pressed look (`data-pressed`, styled in `index.css`) is held for at least 120 ms. Do not add press-scale handlers to new buttons.
+- A button inside a container that scrolls waits for the normal click, so a scroll does not trigger it.
+- Anything tappable must be a real `<button>`; other elements get neither behaviour.
+
 ### Modals
 
 Use `ModalBase` for custom modal content. Use `ErrorModal` and `SuccessModal` for simple status feedback.
