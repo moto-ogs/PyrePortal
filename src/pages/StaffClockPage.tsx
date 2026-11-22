@@ -19,6 +19,7 @@ import { useUserStore } from '../store/userStore';
 import { designSystem } from '../styles/designSystem';
 import { getSecureRandomInt } from '../utils/crypto';
 import { createLogger, logNavigation, logUserAction, serializeError } from '../utils/logger';
+import { pressHandlers } from '../utils/pressHandlers';
 import { TimeoutError, withTimeout } from '../utils/withTimeout';
 
 const logger = createLogger('StaffClockPage');
@@ -393,6 +394,7 @@ function PillButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      {...pressHandlers(disabled)}
       style={{
         height: '68px',
         padding: '0 40px',
@@ -1012,6 +1014,7 @@ function StaffClockPage() {
                           type="button"
                           disabled={isBusy}
                           onClick={() => handleAction(action)}
+                          {...pressHandlers(isBusy)}
                           style={{
                             flex: 1,
                             height: '68px',
@@ -1040,6 +1043,7 @@ function StaffClockPage() {
                       type="button"
                       disabled={isBusy}
                       onClick={() => void handleScan()}
+                      {...pressHandlers(isBusy)}
                       style={{
                         flex: 1,
                         height: '64px',
@@ -1154,6 +1158,7 @@ function StaffClockPage() {
               setPendingCommand(null);
               setReason('');
             }}
+            {...pressHandlers(isBusy)}
             style={{
               height: '60px',
               padding: '0 32px',
@@ -1175,6 +1180,7 @@ function StaffClockPage() {
             type="button"
             disabled={isBusy || reason.trim().length === 0}
             onClick={handleReasonSubmit}
+            {...pressHandlers(isBusy || reason.trim().length === 0)}
             style={{
               height: '60px',
               padding: '0 40px',
