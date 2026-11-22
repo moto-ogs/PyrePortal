@@ -75,6 +75,8 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
     // A reload or shell restart must not lose the entries still in the buffer.
     window.addEventListener('pagehide', () => {
       while (this.logQueue.length > 0) this.writeNextLog();
+      // The queue is empty; a still-pending idle callback finds nothing to write.
+      this.logFlushScheduled = false;
     });
   }
 
