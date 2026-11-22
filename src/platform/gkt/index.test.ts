@@ -536,16 +536,22 @@ describe('GKTAdapter', () => {
     describe('idle scheduling', () => {
       type IdleCallback = (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void;
       let idleCallbacks: IdleCallback[];
+      let idleTimeouts: number[];
 
       beforeEach(async () => {
         // Let a flush that an earlier test scheduled finish first.
         await adapter.persistLog('settle');
         mockLog2.mockReset();
         idleCallbacks = [];
-        vi.stubGlobal('requestIdleCallback', (callback: IdleCallback) => {
-          idleCallbacks.push(callback);
-          return idleCallbacks.length;
-        });
+        idleTimeouts = [];
+        vi.stubGlobal(
+          'requestIdleCallback',
+          (callback: IdleCallback, options: { timeout: number }) => {
+            idleCallbacks.push(callback);
+            idleTimeouts.push(options.timeout);
+            return idleCallbacks.length;
+          }
+        );
       });
 
       afterEach(() => {
@@ -569,13 +575,22 @@ describe('GKTAdapter', () => {
         expect(idleCallbacks).toHaveLength(2);
       });
 
-      it('writes a single entry when the page was never idle', () => {
+      it('writes nothing when the idle period is too short for one native call', () => {
+        void adapter.persistLog('a');
+
+        idleCallbacks[0]({ didTimeout: false, timeRemaining: () => 1 });
+
+        expect(mockLog2).not.toHaveBeenCalled();
+        expect(idleCallbacks).toHaveLength(2);
+      });
+
+      it('writes a single entry when the page was never idle and retries within 50 ms', () => {
         for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
 
         idleCallbacks[0]({ didTimeout: true, timeRemaining: () => 0 });
 
         expect(mockLog2).toHaveBeenCalledTimes(1);
-        expect(idleCallbacks).toHaveLength(2);
+        expect(idleTimeouts).toEqual([1000, 50]);
       });
     });
   });

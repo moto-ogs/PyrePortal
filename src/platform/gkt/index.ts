@@ -63,6 +63,8 @@ export function normalizeNfcPayload(
 // Worst measured cost of one native log call, and the longest an entry waits.
 const LOG_WRITE_MAX_MS = 8;
 const LOG_FLUSH_MAX_DELAY_MS = 1000;
+// Pause between forced writes when the page has no idle time at all.
+const LOG_OVERDUE_RETRY_MS = 50;
 
 class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
   readonly platform = 'gkt' as const;
@@ -113,13 +115,11 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
     });
   }
 
-  private scheduleLogFlush(): void {
+  private scheduleLogFlush(maxDelayMs = LOG_FLUSH_MAX_DELAY_MS): void {
     if (this.logFlushScheduled) return;
     this.logFlushScheduled = true;
     if (typeof requestIdleCallback === 'function') {
-      requestIdleCallback(deadline => this.flushLogs(deadline), {
-        timeout: LOG_FLUSH_MAX_DELAY_MS,
-      });
+      requestIdleCallback(deadline => this.flushLogs(deadline), { timeout: maxDelayMs });
     } else {
       setTimeout(() => this.flushLogs(), 0);
     }
@@ -128,18 +128,19 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
   /**
    * Writes queued entries while the idle period has room for one more native
    * call. Without idle time (forced by the timeout, or no idle API) it writes
-   * a single entry, so a busy page is never held for more than one call.
+   * a single entry, so a busy page is never held for more than one call, and
+   * asks for the next turn soon so that overdue entries do not wait again.
    */
   private flushLogs(deadline?: IdleDeadline): void {
     this.logFlushScheduled = false;
-    const hasIdleTime = deadline !== undefined && !deadline.didTimeout;
-    do {
+    if (deadline === undefined || deadline.didTimeout) {
       this.writeNextLog();
-    } while (
-      this.logQueue.length > 0 &&
-      hasIdleTime &&
-      deadline.timeRemaining() >= LOG_WRITE_MAX_MS
-    );
+      if (this.logQueue.length > 0) this.scheduleLogFlush(LOG_OVERDUE_RETRY_MS);
+      return;
+    }
+    while (this.logQueue.length > 0 && deadline.timeRemaining() >= LOG_WRITE_MAX_MS) {
+      this.writeNextLog();
+    }
     if (this.logQueue.length > 0) this.scheduleLogFlush();
   }
 
