@@ -530,6 +530,97 @@ describe('PinPage', () => {
   // NumpadButton pointer events (components use onPointerDown/onPointerUp)
   // =========================================================================
 
+  // =========================================================================
+  // Touch entry: a key counts when the finger lands
+  // =========================================================================
+
+  describe('touch entry', () => {
+    const renderPad = () => {
+      const { container } = render(
+        <MemoryRouter>
+          <PinPage />
+        </MemoryRouter>
+      );
+      const key = (digit: string) => screen.getByText(digit).closest('button')!;
+      const filledDots = () =>
+        Array.from(getDots(container)).filter(
+          dot => (dot as HTMLElement).style.backgroundColor === '#111827'
+        ).length;
+      return { key, filledDots };
+    };
+
+    // Fast typing on neighbouring keys: the next finger lands before the last
+    // one lifts, and the WebView then sends no click for either touch.
+    it('enters every digit when fingers overlap and no click is sent', () => {
+      const { key, filledDots } = renderPad();
+
+      fireEvent.touchStart(key('1'));
+      fireEvent.touchStart(key('2'));
+      fireEvent.touchEnd(key('1'));
+      fireEvent.touchStart(key('3'));
+      fireEvent.touchEnd(key('2'));
+      fireEvent.touchEnd(key('3'));
+
+      expect(filledDots()).toBe(3);
+    });
+
+    it('stops the browser from sending its own click for the touch', () => {
+      const { key } = renderPad();
+      const notCancelled = fireEvent.touchStart(key('1'));
+      expect(notCancelled).toBe(false);
+    });
+
+    it('enters a digit once when the browser sends a click for the touch anyway', () => {
+      const { key, filledDots } = renderPad();
+
+      fireEvent.touchStart(key('1'));
+      fireEvent.touchEnd(key('1'));
+      fireEvent.click(key('1'), { detail: 1 });
+
+      expect(filledDots()).toBe(1);
+    });
+
+    it('enters a digit once when the panel reports a second contact on a held key', () => {
+      const { key, filledDots } = renderPad();
+
+      fireEvent.touchStart(key('1'));
+      fireEvent.touchStart(key('1'));
+
+      expect(filledDots()).toBe(1);
+    });
+
+    it('treats a recontact on the same key within 80 ms as bounce, a later one as a new digit', () => {
+      const { key, filledDots } = renderPad();
+      let now = 1000;
+      const nowSpy = vi.spyOn(performance, 'now').mockImplementation(() => now);
+      try {
+        fireEvent.touchStart(key('1'));
+        fireEvent.touchEnd(key('1'));
+        now += 40;
+        fireEvent.touchStart(key('1'));
+        fireEvent.touchEnd(key('1'));
+        expect(filledDots()).toBe(1);
+
+        now += 80;
+        fireEvent.touchStart(key('1'));
+        fireEvent.touchEnd(key('1'));
+        expect(filledDots()).toBe(2);
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
+    it('still enters a digit on a mouse click right after a touch on another key', () => {
+      const { key, filledDots } = renderPad();
+
+      fireEvent.touchStart(key('1'));
+      fireEvent.touchEnd(key('1'));
+      fireEvent.click(key('2'), { detail: 1 });
+
+      expect(filledDots()).toBe(2);
+    });
+  });
+
   it('handles pointer events on numpad buttons', () => {
     render(
       <MemoryRouter>

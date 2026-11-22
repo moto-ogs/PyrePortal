@@ -65,7 +65,7 @@ dialog::backdrop {
   background-color: rgba(0, 0, 0, 0.4);
 }
 
-/* Pressed state, set by utils/touchButtons.ts for at least 120 ms per tap.
+/* Pressed state, set by utils/pressFeedback.ts for at least 120 ms per tap.
    No transition, so the first frame after the touch already shows it.
    !important: the look must outlast the inline styles that components reset
    when the finger lifts. The inset shadow darkens the button whatever its colour. */
