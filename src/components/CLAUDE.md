@@ -46,12 +46,9 @@ import { PillButton } from './ui/PillButton';
 
 Keep `BackButton` as the standard navigation primitive unless a screen needs unusual back behavior.
 
-Every `<button>` gets its touch behaviour from `utils/touchButtons.ts`, installed once in `main.tsx`:
+Every `<button>` gets its pressed look from `utils/pressFeedback.ts`, installed once in `main.tsx`: `data-pressed` (styled in `index.css`) is held for at least 120 ms. Do not add press-scale handlers to new buttons.
 
-- `onClick` runs when the finger lands, not when it lifts. Write a normal `onClick`; do not add `onPointerDown`/`onTouchStart` handlers to trigger actions.
-- The pressed look (`data-pressed`, styled in `index.css`) is held for at least 120 ms. Do not add press-scale handlers to new buttons.
-- A button inside a container that scrolls waits for the normal click, so a scroll does not trigger it.
-- The helper applies to native `<button>` elements only. Other click targets (dialog backdrop, dismissible modal content) keep the normal click.
+Buttons act on `click`. The PIN pad is the one exception: its keys count a touch when the finger lands (`NumpadButton` in `pages/PinPage.tsx`), because fast typing overlaps fingers and the WebView then sends no click. Do not make other buttons act on touch down: a global version of this double-fired on the GKT kiosk.
 
 ### Modals
 
