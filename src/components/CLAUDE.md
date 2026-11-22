@@ -51,7 +51,7 @@ Every `<button>` gets its touch behaviour from `utils/touchButtons.ts`, installe
 - `onClick` runs when the finger lands, not when it lifts. Write a normal `onClick`; do not add `onPointerDown`/`onTouchStart` handlers to trigger actions.
 - The pressed look (`data-pressed`, styled in `index.css`) is held for at least 120 ms. Do not add press-scale handlers to new buttons.
 - A button inside a container that scrolls waits for the normal click, so a scroll does not trigger it.
-- Anything tappable must be a real `<button>`; other elements get neither behaviour.
+- The helper applies to native `<button>` elements only. Other click targets (dialog backdrop, dismissible modal content) keep the normal click.
 
 ### Modals
 

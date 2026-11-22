@@ -170,6 +170,46 @@ describe('activation on touch', () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  // Overlapping touches send no click. The next unrelated tap must still work.
+  it('lets the click of a fresh touch through right after touches that sent no click', () => {
+    const backdrop = document.querySelector('#backdrop')!;
+    const onBackdrop = vi.fn<() => void>();
+    backdrop.addEventListener('click', onBackdrop);
+
+    button.dispatchEvent(pointer('pointerdown', 7));
+    button.dispatchEvent(pointer('pointerup', 7));
+    vi.advanceTimersByTime(50);
+    backdrop.dispatchEvent(pointer('pointerdown', 8));
+    backdrop.dispatchEvent(pointer('pointerup', 8));
+    backdrop.dispatchEvent(pointer('click', 1, 'mouse'));
+
+    expect(onBackdrop).toHaveBeenCalledTimes(1);
+  });
+
+  it('lets a keyboard click through right after a touch', () => {
+    const second = document.querySelector<HTMLButtonElement>('#b')!;
+    const onSecond = vi.fn<() => void>();
+    second.addEventListener('click', onSecond);
+
+    button.dispatchEvent(pointer('pointerdown', 7));
+    button.dispatchEvent(pointer('pointerup', 7));
+    second.dispatchEvent(Object.assign(new Event('click', { bubbles: true }), { detail: 0 }));
+
+    expect(onSecond).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not wait for a click after a cancelled touch', () => {
+    const second = document.querySelector<HTMLButtonElement>('#b')!;
+    const onSecond = vi.fn<() => void>();
+    second.addEventListener('click', onSecond);
+
+    button.dispatchEvent(pointer('pointerdown', 7));
+    button.dispatchEvent(pointer('pointercancel', 7));
+    second.dispatchEvent(pointer('click', 1, 'mouse'));
+
+    expect(onSecond).toHaveBeenCalledTimes(1);
+  });
+
   it('lets a later click from another touch through', () => {
     const backdrop = document.querySelector('#backdrop')!;
     const onBackdrop = vi.fn<() => void>();

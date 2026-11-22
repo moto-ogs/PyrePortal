@@ -50,6 +50,8 @@ export function installTouchButtons(): () => void {
 
   const onDown = (event: Event) => {
     const { pointerId, pointerType } = event as PointerEvent;
+    // A click after this point belongs to this new touch, not to an earlier one.
+    lastActivatedUpAt = -Infinity;
     const button = (event.target as Element | null)?.closest?.('button');
     if (!button || button.disabled) return;
     // A new press on a button that is still in its minimum hold keeps it pressed.
@@ -76,7 +78,8 @@ export function installTouchButtons(): () => void {
     if (!press) return;
     held.delete(pointerId);
     if (press.activated) {
-      lastActivatedUpAt = Date.now();
+      // A cancelled touch sends no click.
+      if (event.type === 'pointerup') lastActivatedUpAt = Date.now();
       // Overlapping touches get no click; forget the touch once it cannot come.
       setTimeout(() => activatedPointers.delete(pointerId), CLICK_AFTER_TOUCH_MS);
     }
@@ -93,14 +96,15 @@ export function installTouchButtons(): () => void {
 
   const onClick = (event: Event) => {
     if (activating) return;
-    const { pointerId, pointerType } = event as PointerEvent;
+    const { pointerId, pointerType, detail } = event as PointerEvent;
     // Chrome sends the click of a touch as a touch with the same pointer id.
     // WebKit sends it as a mouse click, so there the first click right after
-    // an activated touch counts as its own.
+    // an activated touch counts as its own, unless a new touch began since.
+    // Keyboard clicks (detail 0) never come from a touch.
     const fromActivatedTouch =
       pointerType === 'touch'
         ? activatedPointers.delete(pointerId)
-        : Date.now() - lastActivatedUpAt < CLICK_AFTER_TOUCH_MS;
+        : detail !== 0 && Date.now() - lastActivatedUpAt < CLICK_AFTER_TOUCH_MS;
     if (!fromActivatedTouch) return;
     lastActivatedUpAt = -Infinity;
     event.stopImmediatePropagation();
