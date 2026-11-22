@@ -26,7 +26,7 @@ export const designSystem = {
     hoverElevate: '0 3px 10px rgba(15,23,42,0.045), 0 0 0 1px rgba(15,23,42,0.045)',
   },
 
-  // Glassmorphism Effects (blur retained for modal chrome; glass surfaces deprecated for flat)
+  // Glass surface colour. The blur token is unused: backdrop blur drops frames on the kiosk GPU.
   glass: {
     background: 'rgba(255,255,255,0.9)',
     blur: 'blur(20px)',

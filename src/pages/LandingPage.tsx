@@ -66,7 +66,7 @@ function LandingPage() {
 
       <div className="flex min-h-screen items-center justify-center p-4">
         {/* White container with shadow - Phoenix style */}
-        <div className="relative w-full max-w-2xl rounded-3xl bg-white/90 p-12 shadow-xl backdrop-blur-md">
+        <div className="relative w-full max-w-2xl rounded-3xl bg-white/90 p-12 shadow-xl">
           <div
             style={{
               display: 'flex',

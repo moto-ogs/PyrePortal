@@ -66,9 +66,12 @@ dialog::backdrop {
 }
 
 /* Pressed state, set by utils/pressFeedback.ts for at least 120 ms per tap.
-   No transition, so the first frame after the touch already shows it. */
+   No transition, so the first frame after the touch already shows it.
+   !important: the look must outlast the inline styles that components reset
+   when the finger lifts. The inset shadow darkens the button whatever its colour. */
 button[data-pressed] {
   transform: scale(0.96) !important;
+  box-shadow: inset 0 0 0 100vmax rgba(0, 0, 0, 0.08) !important;
   transition: none !important;
 }
 
