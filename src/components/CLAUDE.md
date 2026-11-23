@@ -46,6 +46,10 @@ import { PillButton } from './ui/PillButton';
 
 Keep `BackButton` as the standard navigation primitive unless a screen needs unusual back behavior.
 
+Every `<button>` gets its pressed look from `utils/pressFeedback.ts`, installed once in `main.tsx`: `data-pressed` (styled in `index.css`) is held for at least 120 ms. Do not add press-scale handlers to new buttons.
+
+Buttons act on `click`. The PIN pad is the one exception: its keys count a touch when the finger lands (`NumpadButton` in `pages/PinPage.tsx`), because fast typing overlaps fingers and the WebView then sends no click. Do not make other buttons act on touch down: a global version of this double-fired on the GKT kiosk.
+
 ### Modals
 
 Use `ModalBase` for custom modal content. Use `ErrorModal` and `SuccessModal` for simple status feedback.
@@ -112,10 +116,17 @@ Use `SelectionPageLayout` with `SelectableGrid`, `SelectableCard`, `PaginationCo
 ### Zustand Store Access
 
 ```typescript
+import { useShallow } from 'zustand/react/shallow';
+
 import { useUserStore } from '../store/userStore';
 
 function MyComponent() {
-  const { authenticatedUser, fetchTeachers } = useUserStore();
+  // Always pass a selector. `useUserStore()` without one re-renders the
+  // component on every store change, e.g. the network status after each API call.
+  const authenticatedUser = useUserStore(state => state.authenticatedUser);
+  const { users, fetchTeachers } = useUserStore(
+    useShallow(state => ({ users: state.users, fetchTeachers: state.fetchTeachers }))
+  );
 
   // Use local state for view-only concerns.
   const [showErrorModal, setShowErrorModal] = useState(false);

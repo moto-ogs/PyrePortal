@@ -109,7 +109,7 @@ export const SelectableCard = memo(function SelectableCard({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'all 200ms',
+            transition: designSystem.transitions.base,
           }}
         >
           {isSelected && (

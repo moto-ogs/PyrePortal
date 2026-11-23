@@ -1,5 +1,6 @@
 import { adapter } from '@platform';
 import { useEffect, useRef, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 
 import {
   isMockScanSourceRunning,
@@ -52,7 +53,24 @@ export const useRfidScanning = () => {
     addSupervisorFromRfid,
     addActiveSupervisorTag,
     isActiveSupervisor,
-  } = useUserStore();
+  } = useUserStore(
+    useShallow(state => ({
+      rfid: state.rfid,
+      startRfidScanning: state.startRfidScanning,
+      stopRfidScanning: state.stopRfidScanning,
+      setScanResult: state.setScanResult,
+      showScanModal: state.showScanModal,
+      addToProcessingQueue: state.addToProcessingQueue,
+      removeFromProcessingQueue: state.removeFromProcessingQueue,
+      lockPickupQueryTag: state.lockPickupQueryTag,
+      canProcessTag: state.canProcessTag,
+      recordTagScan: state.recordTagScan,
+      clearOldTagScans: state.clearOldTagScans,
+      addSupervisorFromRfid: state.addSupervisorFromRfid,
+      addActiveSupervisorTag: state.addActiveSupervisorTag,
+      isActiveSupervisor: state.isActiveSupervisor,
+    }))
+  );
 
   const isInitializedRef = useRef<boolean>(false);
   const isServiceStartedRef = useRef<boolean>(false);

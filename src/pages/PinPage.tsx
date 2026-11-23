@@ -1,6 +1,6 @@
 import { faDeleteLeft } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
 
 import { BackgroundWrapper } from '../components/background-wrapper';
@@ -41,10 +41,65 @@ interface NumpadButtonProps {
 const NUMPAD_SHADOW = '0 3px 8px rgba(0, 0, 0, 0.1)';
 const NUMPAD_SHADOW_PRESSED = '0 1px 2px rgba(0, 0, 0, 0.1)';
 
+// A recontact on the same key this soon after its last entry is panel bounce.
+// A deliberate repeat ("11") needs a lift and a new press, which takes longer.
+const SAME_KEY_BOUNCE_MS = 80;
+// A click the browser still sends for a touch on this key arrives within this time.
+const CLICK_AFTER_TOUCH_MS = 700;
+
 function NumpadButton({ onClick, isAction = false, children }: NumpadButtonProps) {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const onClickRef = useRef(onClick);
+  const touch = useRef({ held: 0, enteredAt: -Infinity });
+
+  useEffect(() => {
+    onClickRef.current = onClick;
+  });
+
+  // A key counts when the finger lands. Fast typing puts the next finger down
+  // before the last one lifts; the WebView then sends pointer events but no
+  // click, and the digit would be lost. The listener is native because it must
+  // cancel the touch (React registers touchstart as passive): a cancelled
+  // touch makes the browser send no click of its own.
+  useEffect(() => {
+    const button = buttonRef.current;
+    if (!button) return;
+    const state = touch.current;
+    const onTouchStart = (event: TouchEvent) => {
+      // Not cancelable means the browser already owns the gesture (a scroll);
+      // its click, if any, enters the digit.
+      if (!event.cancelable) return;
+      event.preventDefault();
+      const now = performance.now();
+      const isNewPress = state.held === 0 && now - state.enteredAt >= SAME_KEY_BOUNCE_MS;
+      state.held += 1;
+      if (!isNewPress) return;
+      state.enteredAt = now;
+      onClickRef.current();
+    };
+    const onTouchEnd = () => {
+      state.held = Math.max(0, state.held - 1);
+    };
+    button.addEventListener('touchstart', onTouchStart, { passive: false });
+    button.addEventListener('touchend', onTouchEnd);
+    button.addEventListener('touchcancel', onTouchEnd);
+    return () => {
+      button.removeEventListener('touchstart', onTouchStart);
+      button.removeEventListener('touchend', onTouchEnd);
+      button.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, []);
+
   return (
     <button
-      onClick={onClick}
+      ref={buttonRef}
+      onClick={event => {
+        // Mouse and keyboard enter through the click. A pointer-made click right
+        // after a touch entry on this key is the browser's click for that touch.
+        const afterTouch = performance.now() - touch.current.enteredAt < CLICK_AFTER_TOUCH_MS;
+        if (afterTouch && event.detail !== 0) return;
+        onClick();
+      }}
       style={{
         width: '100%',
         height: '95px',
@@ -92,7 +147,7 @@ function NumpadButton({ onClick, isAction = false, children }: NumpadButtonProps
 }
 
 function PinPage() {
-  const { setAuthenticatedUser } = useUserStore();
+  const setAuthenticatedUser = useUserStore(state => state.setAuthenticatedUser);
   const [pin, setPin] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isErrorModalOpen, setIsErrorModalOpen] = useState<boolean>(false);
@@ -278,7 +333,7 @@ function PinPage() {
 
       <div className="flex min-h-screen items-center justify-center">
         {/* White container - Use grid layout for true full width */}
-        <div className="h-screen w-screen overflow-auto bg-white/90 p-8 backdrop-blur-md">
+        <div className="h-screen w-screen overflow-auto bg-white/90 p-8">
           {/* Header - 7-inch optimized */}
           <div
             style={{
@@ -328,7 +383,7 @@ function PinPage() {
                 border: `2px solid ${isLoading ? designSystem.gray[400] : designSystem.gray[200]}`,
                 width: 'fit-content',
                 margin: '0 auto 12px auto',
-                transition: 'all 300ms ease-out',
+                transition: 'border-color 300ms ease-out',
                 minHeight: '56px',
               }}
             >

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 
 import { normalizeNfcPayload } from './index';
 
@@ -504,6 +504,120 @@ describe('GKTAdapter', () => {
       expect(consoleSpy).toHaveBeenCalledWith('fallback entry');
 
       consoleSpy.mockRestore();
+    });
+
+    it('does not call the native bridge inside the caller task', () => {
+      const pending = adapter.persistLog('deferred entry');
+      expect(mockLog2).not.toHaveBeenCalled();
+      return pending;
+    });
+
+    it('writes buffered entries in the order they were logged', async () => {
+      await Promise.all(['first', 'second', 'third'].map(entry => adapter.persistLog(entry)));
+      expect(mockLog2.mock.calls.map((call: unknown[]) => call[1])).toEqual([
+        'first',
+        'second',
+        'third',
+      ]);
+    });
+
+    it('writes every buffered entry when the page is unloaded', () => {
+      void adapter.persistLog('before reload 1');
+      void adapter.persistLog('before reload 2');
+
+      window.dispatchEvent(new Event('pagehide'));
+
+      expect(mockLog2.mock.calls.map((call: unknown[]) => call[1])).toEqual([
+        'before reload 1',
+        'before reload 2',
+      ]);
+    });
+
+    describe('idle scheduling', () => {
+      type IdleCallback = (deadline: { didTimeout: boolean; timeRemaining: () => number }) => void;
+      let idleCallbacks: IdleCallback[];
+      let idleTimeouts: number[];
+
+      beforeEach(async () => {
+        // Let a flush that an earlier test scheduled finish first.
+        await adapter.persistLog('settle');
+        mockLog2.mockReset();
+        idleCallbacks = [];
+        idleTimeouts = [];
+        vi.stubGlobal(
+          'requestIdleCallback',
+          (callback: IdleCallback, options: { timeout: number }) => {
+            idleCallbacks.push(callback);
+            idleTimeouts.push(options.timeout);
+            return idleCallbacks.length;
+          }
+        );
+      });
+
+      afterEach(() => {
+        // Drain what a test left queued, so it cannot leak into the next one.
+        window.dispatchEvent(new Event('pagehide'));
+        vi.unstubAllGlobals();
+      });
+
+      it('stops writing when the idle period has no room for another native call', () => {
+        // 20 ms idle, each native call costs 7 ms: two fit, the third must wait.
+        let remaining = 20;
+        mockLog2.mockImplementation(() => {
+          remaining -= 7;
+        });
+        for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
+        expect(idleCallbacks).toHaveLength(1);
+
+        idleCallbacks[0]({ didTimeout: false, timeRemaining: () => remaining });
+
+        expect(mockLog2).toHaveBeenCalledTimes(2);
+        expect(idleCallbacks).toHaveLength(2);
+      });
+
+      it('writes nothing when the idle period is too short for one native call', () => {
+        void adapter.persistLog('a');
+
+        idleCallbacks[0]({ didTimeout: false, timeRemaining: () => 1 });
+
+        expect(mockLog2).not.toHaveBeenCalled();
+        expect(idleCallbacks).toHaveLength(2);
+      });
+
+      it('does not let short idle periods postpone an entry beyond one second', () => {
+        vi.useFakeTimers();
+        try {
+          void adapter.persistLog('a');
+          const tooShort = { didTimeout: false, timeRemaining: () => 1 };
+
+          vi.advanceTimersByTime(600);
+          idleCallbacks[0](tooShort);
+          expect(mockLog2).not.toHaveBeenCalled();
+          // The retry may only use what is left of the entry's second.
+          expect(idleTimeouts).toEqual([1000, 400]);
+
+          vi.advanceTimersByTime(400);
+          idleCallbacks[1](tooShort);
+          expect(mockLog2).toHaveBeenCalledTimes(1);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
+
+      it('writes a single entry when the page was never idle and retries within 50 ms', () => {
+        vi.useFakeTimers();
+        try {
+          for (const entry of ['a', 'b', 'c']) void adapter.persistLog(entry);
+
+          vi.advanceTimersByTime(1000);
+          idleCallbacks[0]({ didTimeout: true, timeRemaining: () => 0 });
+
+          expect(mockLog2).toHaveBeenCalledTimes(1);
+          expect(idleTimeouts).toEqual([1000, 50]);
+        } finally {
+          vi.useRealTimers();
+        }
+      });
     });
   });
 

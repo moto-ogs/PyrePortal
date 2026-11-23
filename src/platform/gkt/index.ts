@@ -60,8 +60,27 @@ export function normalizeNfcPayload(
   return null;
 }
 
+// Worst measured cost of one native log call, and the longest an entry waits.
+const LOG_WRITE_MAX_MS = 8;
+const LOG_FLUSH_MAX_DELAY_MS = 1000;
+// Pause between forced writes when the page has no idle time at all.
+const LOG_OVERDUE_RETRY_MS = 50;
+
 class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
   readonly platform = 'gkt' as const;
+
+  private readonly logQueue: { entry: string; queuedAt: number; resolve: () => void }[] = [];
+  private logFlushScheduled = false;
+
+  constructor() {
+    super();
+    // A reload or shell restart must not lose the entries still in the buffer.
+    window.addEventListener('pagehide', () => {
+      while (this.logQueue.length > 0) this.writeNextLog();
+      // The queue is empty; a still-pending idle callback finds nothing to write.
+      this.logFlushScheduled = false;
+    });
+  }
 
   async initializeNfc(): Promise<void> {
     // Register NFC callback with system.js — handles all payload shapes.
@@ -84,13 +103,66 @@ class GKTAdapter extends WebAdapterBase implements PlatformAdapter {
     });
   }
 
-  async persistLog(entry: string): Promise<void> {
+  /**
+   * Buffers the entry and writes it when the page is idle. A native log call
+   * blocks the main thread for several milliseconds on the GKT hardware, so it
+   * must not run inside a tap or scan handler. Resolves once the entry is written.
+   */
+  persistLog(entry: string): Promise<void> {
+    return new Promise(resolve => {
+      this.logQueue.push({ entry, queuedAt: Date.now(), resolve });
+      this.scheduleLogFlush(LOG_FLUSH_MAX_DELAY_MS);
+    });
+  }
+
+  private scheduleLogFlush(maxDelayMs: number): void {
+    if (this.logFlushScheduled) return;
+    this.logFlushScheduled = true;
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(deadline => this.flushLogs(deadline), { timeout: maxDelayMs });
+    } else {
+      setTimeout(() => this.flushLogs(), 0);
+    }
+  }
+
+  /** Time the oldest queued entry may still wait before it is overdue. */
+  private oldestLogSlackMs(): number {
+    const oldest = this.logQueue[0];
+    return oldest
+      ? LOG_FLUSH_MAX_DELAY_MS - (Date.now() - oldest.queuedAt)
+      : LOG_FLUSH_MAX_DELAY_MS;
+  }
+
+  /**
+   * Writes queued entries while the idle period has room for one more native
+   * call. When the oldest entry is overdue (or there is no idle API) it writes
+   * a single entry whatever the idle time, so a busy page is never held for
+   * more than one call, and asks for the next turn soon.
+   */
+  private flushLogs(deadline?: IdleDeadline): void {
+    this.logFlushScheduled = false;
+    if (deadline === undefined || deadline.didTimeout || this.oldestLogSlackMs() <= 0) {
+      this.writeNextLog();
+    } else {
+      while (this.logQueue.length > 0 && deadline.timeRemaining() >= LOG_WRITE_MAX_MS) {
+        this.writeNextLog();
+      }
+    }
+    if (this.logQueue.length > 0) {
+      this.scheduleLogFlush(Math.max(LOG_OVERDUE_RETRY_MS, this.oldestLogSlackMs()));
+    }
+  }
+
+  private writeNextLog(): void {
+    const next = this.logQueue.shift();
+    if (!next) return;
     try {
-      SYSTEM.log2('PyrePortal', entry);
+      SYSTEM.log2('PyrePortal', next.entry);
     } catch {
       // eslint-disable-next-line no-console
-      console.log(entry);
+      console.log(next.entry);
     }
+    next.resolve();
   }
 }
 

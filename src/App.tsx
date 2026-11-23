@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router';
+import { useShallow } from 'zustand/react/shallow';
 
 import { KioskNotice } from './components/KioskNotice';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -23,16 +24,38 @@ import { useUserStore } from './store/userStore';
 import ErrorBoundary from './utils/errorBoundary';
 import { createLogger, getRuntimeConfig, logger } from './utils/logger';
 
+/**
+ * Runs the health-check monitoring and shows the indicator when the connection
+ * is poor or offline. The network status changes with every API call, so it is
+ * read here and not in App: App would re-render every routed page with it.
+ */
+function NetworkStatusOverlay() {
+  const { networkStatus } = useNetworkStatus();
+  if (networkStatus.quality !== 'poor' && networkStatus.quality !== 'offline') return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: '8px',
+        right: '8px',
+        zIndex: 1000,
+        pointerEvents: 'none', // Doesn't interfere with interactions
+      }}
+    >
+      <NetworkStatus status={networkStatus} />
+    </div>
+  );
+}
+
 function App() {
-  const {
-    selectedRoom,
-    selectedActivity,
-    updateNetworkQuality,
-    handleAccessError,
-    networkStatus: storeNetworkStatus,
-  } = useUserStore();
-  // Starts health-check monitoring; results are written directly to the store
-  useNetworkStatus();
+  const { selectedRoom, selectedActivity, updateNetworkQuality, handleAccessError } = useUserStore(
+    useShallow(state => ({
+      selectedRoom: state.selectedRoom,
+      selectedActivity: state.selectedActivity,
+      updateNetworkQuality: state.updateNetworkQuality,
+      handleAccessError: state.handleAccessError,
+    }))
+  );
   const appLogger = useMemo(() => createLogger('App'), []);
 
   // Initialize logger with runtime config
@@ -67,20 +90,7 @@ function App() {
     <ErrorBoundary>
       <RfidServiceInitializer />
       <KioskNotice />
-      {/* Network Status Indicator - shown on all pages when poor/offline */}
-      {(storeNetworkStatus.quality === 'poor' || storeNetworkStatus.quality === 'offline') && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '8px',
-            right: '8px',
-            zIndex: 1000,
-            pointerEvents: 'none', // Doesn't interfere with interactions
-          }}
-        >
-          <NetworkStatus status={storeNetworkStatus} />
-        </div>
-      )}
+      <NetworkStatusOverlay />
       <main className="relative z-[1] m-0 flex h-screen flex-col items-center justify-center text-center">
         <BrowserRouter>
           <Routes>

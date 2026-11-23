@@ -1,6 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
+import { Profiler } from 'react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import { useUserStore } from '../store/userStore';
 
@@ -80,5 +81,25 @@ describe('ProtectedRoute', () => {
     );
 
     expect(screen.getByText('Allowed')).toBeInTheDocument();
+  });
+
+  // Every API call updates the network status. That must not re-render the routed page.
+  it('does not render again when unrelated store state changes', () => {
+    useUserStore.setState({
+      authenticatedUser: { staffId: 1, staffName: 'Test', deviceName: 'Dev', pin: '1234' },
+    });
+    const onRender = vi.fn();
+    renderWithRouter(
+      <Profiler id="route" onRender={onRender}>
+        <ProtectedRoute>
+          <div>Protected Content</div>
+        </ProtectedRoute>
+      </Profiler>
+    );
+    onRender.mockClear();
+
+    act(() => useUserStore.getState().updateNetworkQuality('poor', 900));
+
+    expect(onRender).not.toHaveBeenCalled();
   });
 });

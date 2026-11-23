@@ -15,7 +15,6 @@ import { type TagAssignmentCheck } from '../services/api';
 import { useUserStore } from '../store/userStore';
 import { designSystem } from '../styles/designSystem';
 import { logNavigation, logUserAction } from '../utils/logger';
-import { pressHandlers } from '../utils/pressHandlers';
 
 /** User-facing German UI copy for this page */
 const texts = {
@@ -61,7 +60,7 @@ const texts = {
  * 6. Show confirmation and options to continue or go back
  */
 function TagAssignmentPage() {
-  const { authenticatedUser } = useUserStore();
+  const authenticatedUser = useUserStore(state => state.authenticatedUser);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -250,7 +249,6 @@ function TagAssignmentPage() {
 
             <button
               onClick={cancelScan}
-              {...pressHandlers()}
               style={{
                 padding: '12px 32px',
                 fontSize: '18px',
@@ -654,7 +652,6 @@ function TagAssignmentPage() {
                 >
                   <button
                     onClick={scanAnother}
-                    {...pressHandlers()}
                     style={{
                       height: '68px',
                       padding: '0 40px',
@@ -674,7 +671,6 @@ function TagAssignmentPage() {
                   </button>
                   <button
                     onClick={handleBack}
-                    {...pressHandlers()}
                     style={{
                       height: '68px',
                       padding: '0 40px',
