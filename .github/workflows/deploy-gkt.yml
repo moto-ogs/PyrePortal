@@ -156,16 +156,12 @@ jobs:
 
       - name: Notify Slack
         if: always() && steps.deploy.outcome != 'skipped'
-        uses: ./.github/actions/notify-deploy-slack
+        uses: moto-ogs/deploy-notify@v1
         with:
-          webhook_url: ${{ secrets.SLACK_DEPLOY_WEBHOOK }}
-          job_status: ${{ job.status }}
+          slack_token: ${{ secrets.SLACK_BOT_TOKEN }}
+          channel: ${{ vars.SLACK_DEPLOY_CHANNEL }}
+          status: ${{ job.status }}
           environment: ${{ env.DEPLOY_ENV }}
-          app_name: PyrePortal
+          app: PyrePortal
+          version: ${{ steps.release.outputs.tag }}
           exit_code: ${{ steps.deploy.outputs.deploy_exit }}
-          github_token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          commit_url: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
-          sha: ${{ github.sha }}
-          actor: ${{ github.actor }}
