@@ -214,6 +214,8 @@ const CODE_MESSAGES: Readonly<Partial<Record<ErrorCode, string>>> = {
   'iot.deviation_reason_required': 'Für diese Abweichung vom Dienstplan ist eine Begründung nötig.',
   'iot.invalid_staff_clock_state': 'Diese Aktion passt nicht zum aktuellen Stempelstatus.',
   'iot.room_not_found': 'Diesen Raum gibt es nicht mehr. Bitte eine Betreuungskraft fragen.',
+  // project-phoenix #7653, #8161: the school closed the room for today.
+  'iot.room_closed': 'Dieser Raum ist heute gesperrt. Bitte einen anderen Raum wählen.',
   'rooms.not_released': 'Dieser Raum ist gerade nicht offen. Bitte einen anderen Ort wählen.',
   'iot.student_not_present':
     'Das Kind ist heute noch nicht angemeldet. Bitte eine Betreuungskraft fragen.',
