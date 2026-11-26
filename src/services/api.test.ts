@@ -109,6 +109,8 @@ describe('mapApiErrorToGerman', () => {
       'Das Kind ist heute noch nicht angemeldet. Bitte eine Betreuungskraft fragen.',
     ],
     ['open_room_binary_mode', 409, 'Offene Räume gibt es an dieser Schule nicht.'],
+    // project-phoenix #7653, #8161: also POST /api/iot/session/start
+    ['iot.room_closed', 400, 'Dieser Raum ist heute gesperrt. Bitte einen anderen Raum wählen.'],
   ])('maps open-room code %s without parsing its message', (code, status, expected) => {
     expect(mapApiErrorToGerman(new ApiError('opaque backend message', status, code))).toBe(
       expected
